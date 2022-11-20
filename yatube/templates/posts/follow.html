@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% block title %}Страница подписок на авторов{% endblock %}
+{% block content%}
+  <h1>Страница подписок на авторов</h1>
+  {% include 'posts/includes/switcher.html' with follow=False%}
+  {% for post in page_obj %}
+    {% include 'includes/article.html' with show_link=True %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  {% include 'posts/includes/paginator.html' %}
+{% endblock content%}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% block title %}Главная страница проекта YaTube{% endblock %}
+{% block content%}
+  <h1>Главная страница проекта YaTube</h1>
+  {% load cache %}
+  {% cache 20 index_page %}
+  {% include 'posts/includes/switcher.html' with follow=False%}
+  {% for post in page_obj %}
+    {% include 'includes/article.html' with show_link=True %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  {% endcache %}
+  {% include 'posts/includes/paginator.html' %}
+{% endblock content%}
