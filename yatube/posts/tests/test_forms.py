@@ -92,7 +92,7 @@ class TaskCreateFormTests(TestCase):
                     kwargs={'username': self.user.username}
                     )
         )
-        self.assertEqual(Post.objects.count(), len(posts_before) + 1)
+        self.assertEqual(len(str(post_tuple)), 1)
 
     # Проверка редактирования поста
     def test_edit_post(self):
