@@ -2,8 +2,10 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.conf import settings
+from django.core.cache import cache
 
-from posts.models import Group, Post
+
+from posts.models import Group, Post, Comment, Follow
 from posts.forms import PostForm
 
 User = get_user_model()
@@ -14,6 +16,7 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='auth')
+        cls.user_follower = User.objects.create_user(username='follower')
         cls.group_with_post = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
@@ -34,6 +37,8 @@ class PostPagesTests(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.authorized_client_follower = Client()
+        self.authorized_client_follower.force_login(self.user_follower)
 
     # Проверка, что страницы передают правильный контекст
     def test_pages_shows_correct_context(self):
@@ -115,6 +120,79 @@ class PostPagesTests(TestCase):
         )
         response = self.authorized_client.get(url)
         self.assertNotIn(self.post, response.context['page_obj'])
+
+    # Проверка, что картинка выводится на странице
+    def test_image_post_show_on_pages(self):
+        url_list = (
+            reverse('posts:index'),
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': self.group_with_post.slug},
+            ),
+            reverse(
+                'posts:profile',
+                kwargs={'username': self.user.username},
+            ),
+        )
+        for url in url_list:
+            with self.subTest(url=url):
+                response = self.authorized_client.get(url)
+                self.assertEqual(
+                    response.context['page_obj'][0].image, self.post.image
+                )
+
+    def test_image_post_show_on_post_detail_page(self):
+        url = reverse(
+            'posts:post_detail',
+            kwargs={'post_id': self.post.id},
+        )
+        response = self.authorized_client.get(url)
+        self.assertEqual(response.context['post'].image, self.post.image)
+
+    def test_cache_index(self):
+        """Проверка хранения и очищения кэша для index."""
+        response = self.authorized_client.get(reverse('posts:index'))
+        content_before_post_create = response.content
+        Post.objects.create(
+            text='test_new_post',
+            author=self.user,
+        )
+        second_response = self.authorized_client.get(reverse('posts:index'))
+        content_after_post_create = second_response.content
+        self.assertEqual(content_before_post_create, content_after_post_create)
+        cache.clear()
+        third_response = self.authorized_client.get(reverse('posts:index'))
+        content_cache_cleared = third_response.content
+        self.assertNotEqual(content_after_post_create, content_cache_cleared)
+
+    def test_comment_create(self):
+        """Проверка создания комментария."""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.user,
+            text='test_comment',
+        )
+        self.assertEqual(comment.post, self.post)
+        self.assertEqual(comment.author, self.user)
+        self.assertEqual(comment.text, 'test_comment')
+
+    def test_follow(self):
+        """Проверка подписки на пользователя."""
+        follow = Follow.objects.create(
+            user=self.user_follower,
+            author=self.user,
+        )
+        self.assertEqual(follow.user, self.user_follower)
+        self.assertEqual(follow.author, self.user)
+
+    def test_unfollow(self):
+        """Проверка отписки от пользователя."""
+        follow = Follow.objects.create(
+            user=self.user_follower,
+            author=self.user,
+        )
+        follow.delete()
+        self.assertEqual(Follow.objects.count(), 0)
 
 
 # Проверяем работоспособность Паджинатора
