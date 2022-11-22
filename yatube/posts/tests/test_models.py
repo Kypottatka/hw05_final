@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.db import IntegrityError
 
-from posts.models import Group, Post
+from posts.models import Group, Post, Follow
 
 User = get_user_model()
 
@@ -88,3 +89,8 @@ class PostModelTest(TestCase):
                 self.assertEqual(
                     group._meta.get_field(value).help_text, expected
                 )
+
+    def test_no_self_follow(self):
+        constraint_name = "self_follow_prevention"
+        with self.assertRaisesMessage(IntegrityError, constraint_name):
+            Follow.objects.create(user=self.user, author=self.user)

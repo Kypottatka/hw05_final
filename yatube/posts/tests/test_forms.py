@@ -126,6 +126,26 @@ class TaskCreateFormTests(TestCase):
 
     # Проверка создания комментария
     def test_comment_create(self):
-        self.assertEqual(self.comment.post, self.post)
-        self.assertEqual(self.comment.author, self.user)
-        self.assertEqual(self.comment.text, 'test_comment')
+        comments_before = set(
+            Comment.objects.values_list('id', flat=True)
+        )
+        form_data = {
+            'text': 'Текст нового комментария',
+        }
+        self.authorized_client.post(
+            reverse('posts:add_comment',
+                    kwargs={'post_id': self.post.id}),
+            data=form_data,
+            follow=True
+        )
+        comments_set = set(
+            Comment.objects.values_list('id', flat=True)
+        ) - comments_before
+        comment_tuple = comments_set.pop()
+        comment = Comment.objects.get(id=comment_tuple)
+        self.assertEqual(self.post, comment.post)
+        self.assertEqual(self.user, comment.author)
+        self.assertEqual(
+            form_data['text'],
+            comment.text
+        )

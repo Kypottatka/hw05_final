@@ -57,16 +57,23 @@ class PostPagesTests(TestCase):
             ),
         )
 
+        def check_context(url):
+            response = self.authorized_client.get(url)
+            first_object = response.context['page_obj'][0]
+            self.assertEqual(first_object.text, self.post.text)
+            self.assertEqual(first_object.author, self.post.author)
+            self.assertEqual(first_object.group, self.post.group)
+            self.assertEqual(
+                first_object.image, self.post.image
+            )
+
         for url in url_list:
             with self.subTest(url=url):
-                response = self.authorized_client.get(url)
-                first_object = response.context['page_obj'][0]
-                self.assertEqual(first_object.text, self.post.text)
-                self.assertEqual(first_object.author, self.post.author)
-                self.assertEqual(first_object.group, self.post.group)
-                self.assertEqual(
-                    first_object.image, self.post.image
-                )
+                if url == reverse('posts:follow_index'):
+                    self.authorized_client.force_login(self.user_follower)
+                    check_context(url)
+                else:
+                    check_context(url)
 
     # Проверка, что страница post_detail передает правильный контекст
     def test_post_detail_page_show_correct_context(self):
@@ -79,6 +86,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(post_object.text, self.post.text)
         self.assertEqual(post_object.author, self.post.author)
         self.assertEqual(post_object.group, self.post.group)
+        self.assertEqual(response.context['post'].image, self.post.image)
 
     # Проверка, что страницы передают правильный контекст
     def test_post_create_page_show_correct_context(self):
@@ -125,14 +133,6 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(url)
         self.assertNotIn(self.post, response.context['page_obj'])
 
-    def test_image_post_show_on_post_detail_page(self):
-        url = reverse(
-            'posts:post_detail',
-            kwargs={'post_id': self.post.id},
-        )
-        response = self.authorized_client.get(url)
-        self.assertEqual(response.context['post'].image, self.post.image)
-
     def test_cache_index(self):
         """Проверка хранения и очищения кэша для index."""
         response = self.authorized_client.get(reverse('posts:index'))
@@ -165,7 +165,12 @@ class PostPagesTests(TestCase):
 
     def test_unfollow(self):
         """Проверка отписки от пользователя."""
-        self.follow.delete()
+        self.authorized_client.force_login(self.user_follower)
+        self.authorized_client.post(
+            reverse('posts:profile_unfollow',
+                    kwargs={'username': self.user.username}
+                    ),
+        )
         self.assertFalse(
             Follow.objects.filter(
                 user=self.user_follower,
