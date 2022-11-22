@@ -6,7 +6,7 @@
 {% block content %}
     <div class="mb-5">
         <h1>Все посты пользователя {{ author.get_full_name }}</h1>
-        <h3>Всего постов: {{ posts_count }}</h3>
+        <h3>Всего постов: {{ page_obj.paginator.count }} </h3>
         {% if following %}
         <a
             class="btn btn-lg btn-light"
@@ -14,15 +14,15 @@
             Отписаться
         </a>
         {% else %}
-        <a
-          class="btn btn-lg btn-primary"
-          href="{% url 'posts:profile_follow' author.username %}" role="button">
-          Подписаться
-        </a>
+            {% if not author == request.user %}
+            <a
+                class="btn btn-lg btn-primary"
+                href="{% url 'posts:profile_follow' author.username %}" role="button">
+                Подписаться
+            </a>
+            {% endif %}
         {% endif %}
     </div>
-    <h1>Все посты пользователя {{ author.get_full_name }}</h1>
-    <h3>Всего постов: {{ page_obj.paginator.count }} </h3>
     {% for post in page_obj %}
         {% include 'includes/article.html' with show_link=True %}
         {% if not forloop.last %}<hr>{% endif %}

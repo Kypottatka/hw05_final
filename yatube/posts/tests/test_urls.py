@@ -30,6 +30,7 @@ class PostURLTests(TestCase):
         self.authorized_client_post_author = Client()
         self.authorized_client_post_author.force_login(self.user_author)
 
+    # Проверка reverse_name для страниц
     def test_reverse_name(self):
         template_names = {
             reverse('posts:index'):
@@ -45,6 +46,8 @@ class PostURLTests(TestCase):
                 '/create/',
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}):
                 f'/posts/{self.post.id}/edit/',
+            reverse('posts:follow_index'):
+                '/follow/',
         }
         for reverse_name, address in template_names.items():
             with self.subTest(reverse_name=reverse_name):
@@ -65,6 +68,8 @@ class PostURLTests(TestCase):
             (reverse('posts:post_create'),
                 200, True),
             (reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
+                200, True),
+            (reverse('posts:follow_index'),
                 200, True),
             ('/unexisting_page/',
                 404, False),
@@ -93,6 +98,8 @@ class PostURLTests(TestCase):
                 'posts/post_detail.html',
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}):
                 'posts/create_post.html',
+            reverse('posts:follow_index'):
+                'posts/follow.html',
         }
         for address, template in templates_pages_names.items():
             with self.subTest(address=address):
@@ -103,6 +110,7 @@ class PostURLTests(TestCase):
         urls = [
             reverse('posts:post_create'),
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
+            reverse('posts:follow_index'),
         ]
         for url in urls:
             with self.subTest(url=url):

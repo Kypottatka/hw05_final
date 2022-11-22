@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from posts.models import Group, Post
+from posts.models import Group, Post, Comment
 
 
 User = get_user_model()
@@ -30,6 +30,11 @@ class TaskCreateFormTests(TestCase):
             text='Тестовый текст',
             author=cls.user,
             group=cls.group,
+        )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user,
+            text='test_comment',
         )
 
     @classmethod
@@ -118,3 +123,9 @@ class TaskCreateFormTests(TestCase):
         self.assertRedirects(
             response,
             reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
+
+    # Проверка создания комментария
+    def test_comment_create(self):
+        self.assertEqual(self.comment.post, self.post)
+        self.assertEqual(self.comment.author, self.user)
+        self.assertEqual(self.comment.text, 'test_comment')

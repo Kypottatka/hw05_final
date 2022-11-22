@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 
-from posts.models import Group, Post, Comment, Follow
+from posts.models import Group, Post, Follow
 from posts.forms import PostForm
 
 User = get_user_model()
@@ -32,13 +32,14 @@ class PostPagesTests(TestCase):
             author=cls.user,
             group=cls.group_with_post,
         )
+        cls.follow = Follow.objects.create(
+            user=cls.user_follower,
+            author=cls.user,
+        )
 
     def setUp(self):
-        self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-        self.authorized_client_follower = Client()
-        self.authorized_client_follower.force_login(self.user_follower)
 
     # Проверка, что страницы передают правильный контекст
     def test_pages_shows_correct_context(self):
@@ -53,7 +54,7 @@ class PostPagesTests(TestCase):
             reverse(
                 'posts:profile',
                 kwargs={'username': self.user.username},
-            )
+            ),
         )
 
         for url in url_list:
@@ -63,6 +64,9 @@ class PostPagesTests(TestCase):
                 self.assertEqual(first_object.text, self.post.text)
                 self.assertEqual(first_object.author, self.post.author)
                 self.assertEqual(first_object.group, self.post.group)
+                self.assertEqual(
+                    first_object.image, self.post.image
+                )
 
     # Проверка, что страница post_detail передает правильный контекст
     def test_post_detail_page_show_correct_context(self):
@@ -121,26 +125,6 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(url)
         self.assertNotIn(self.post, response.context['page_obj'])
 
-    # Проверка, что картинка выводится на странице
-    def test_image_post_show_on_pages(self):
-        url_list = (
-            reverse('posts:index'),
-            reverse(
-                'posts:group_list',
-                kwargs={'slug': self.group_with_post.slug},
-            ),
-            reverse(
-                'posts:profile',
-                kwargs={'username': self.user.username},
-            ),
-        )
-        for url in url_list:
-            with self.subTest(url=url):
-                response = self.authorized_client.get(url)
-                self.assertEqual(
-                    response.context['page_obj'][0].image, self.post.image
-                )
-
     def test_image_post_show_on_post_detail_page(self):
         url = reverse(
             'posts:post_detail',
@@ -165,34 +149,29 @@ class PostPagesTests(TestCase):
         content_cache_cleared = third_response.content
         self.assertNotEqual(content_after_post_create, content_cache_cleared)
 
-    def test_comment_create(self):
-        """Проверка создания комментария."""
-        comment = Comment.objects.create(
-            post=self.post,
-            author=self.user,
-            text='test_comment',
-        )
-        self.assertEqual(comment.post, self.post)
-        self.assertEqual(comment.author, self.user)
-        self.assertEqual(comment.text, 'test_comment')
-
     def test_follow(self):
         """Проверка подписки на пользователя."""
-        follow = Follow.objects.create(
-            user=self.user_follower,
-            author=self.user,
+        self.authorized_client.post(
+            reverse('posts:profile_follow',
+                    kwargs={'username': self.user_follower.username}
+                    ),
         )
-        self.assertEqual(follow.user, self.user_follower)
-        self.assertEqual(follow.author, self.user)
+        self.assertTrue(
+            Follow.objects.filter(
+                user=self.user,
+                author=self.user_follower
+            ).exists()
+        )
 
     def test_unfollow(self):
         """Проверка отписки от пользователя."""
-        follow = Follow.objects.create(
-            user=self.user_follower,
-            author=self.user,
+        self.follow.delete()
+        self.assertFalse(
+            Follow.objects.filter(
+                user=self.user_follower,
+                author=self.user
+            ).exists()
         )
-        follow.delete()
-        self.assertEqual(Follow.objects.count(), 0)
 
 
 # Проверяем работоспособность Паджинатора
@@ -201,6 +180,7 @@ class PaginatorViewsTest(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='auth')
+        cls.user_follower = User.objects.create_user(username='follower')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
@@ -220,8 +200,15 @@ class PaginatorViewsTest(TestCase):
             ]
         )
 
+        cls.follow = Follow.objects.create(
+            user=cls.user_follower,
+            author=cls.user,
+        )
+
     def setUp(self):
         self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user_follower)
 
     # Проверяем, что страница отображает по 10 постов
     def test_pages_contain_ten_records(self):
@@ -234,7 +221,7 @@ class PaginatorViewsTest(TestCase):
             reverse(
                 'posts:profile',
                 kwargs={'username': self.user.username},
-            )
+            ),
         )
 
         for url in url_list:
@@ -244,6 +231,11 @@ class PaginatorViewsTest(TestCase):
                     len(response.context['page_obj']),
                     settings.POSTS_ON_PAGE
                 )
+
+        response = self.authorized_client.get(reverse('posts:follow_index'))
+        self.assertEqual(
+            len(response.context['page_obj']), settings.POSTS_ON_PAGE
+        )
 
     # Проверяем, что "n" страница отображает нужное количество постов
     def test_n_page_contains_three_records(self):
@@ -277,3 +269,12 @@ class PaginatorViewsTest(TestCase):
                     len(response.context['page_obj']),
                     get_n_page_posts_number(self.POSTS_NUMBER)
                 )
+
+        self.assertEqual(
+            len(
+                self.authorized_client
+                .get(reverse('posts:follow_index')
+                     + posts_on_n_page).context['page_obj']
+            ),
+            get_n_page_posts_number(self.POSTS_NUMBER)
+        )
