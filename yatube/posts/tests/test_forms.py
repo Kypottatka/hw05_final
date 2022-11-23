@@ -141,11 +141,16 @@ class TaskCreateFormTests(TestCase):
         comments_set = set(
             Comment.objects.values_list('id', flat=True)
         ) - comments_before
-        comment_tuple = comments_set.pop()
-        comment = Comment.objects.get(id=comment_tuple)
-        self.assertEqual(self.post, comment.post)
-        self.assertEqual(self.user, comment.author)
-        self.assertEqual(
-            form_data['text'],
-            comment.text
-        )
+        if len(comments_set) == 0:
+            raise AssertionError('Комментарий не создан')
+        elif len(comments_set) == 1:
+            comment_tuple = comments_set.pop()
+            comment = Comment.objects.get(id=comment_tuple)
+            self.assertEqual(self.post, comment.post)
+            self.assertEqual(self.user, comment.author)
+            self.assertEqual(
+                form_data['text'],
+                comment.text
+            )
+        else:
+            raise AssertionError('Создано более одного комментария')

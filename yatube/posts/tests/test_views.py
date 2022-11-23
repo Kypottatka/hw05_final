@@ -3,7 +3,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.conf import settings
 from django.core.cache import cache
-
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from posts.models import Group, Post, Follow
 from posts.forms import PostForm
@@ -15,6 +15,19 @@ class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.user = User.objects.create_user(username='auth')
         cls.user_follower = User.objects.create_user(username='follower')
         cls.group_with_post = Group.objects.create(
@@ -31,6 +44,7 @@ class PostPagesTests(TestCase):
             text='тестовый текст',
             author=cls.user,
             group=cls.group_with_post,
+            image=uploaded,
         )
         cls.follow = Follow.objects.create(
             user=cls.user_follower,
