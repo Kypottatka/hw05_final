@@ -76,8 +76,9 @@ class TaskCreateFormTests(TestCase):
         posts_set = set(
             Post.objects.values_list('id', flat=True)
         ) - posts_before
-        post_tuple = posts_set.pop()
-        post = Post.objects.get(id=post_tuple)
+        posts_count_check = set(posts_set)
+        post_id = posts_set.pop()
+        post = Post.objects.get(id=post_id)
         self.assertEqual(self.user, self.post.author)
         self.assertEqual(
             form_data['group'],
@@ -97,7 +98,7 @@ class TaskCreateFormTests(TestCase):
                     kwargs={'username': self.user.username}
                     )
         )
-        self.assertEqual(len(str(post_tuple)), 1)
+        self.assertEqual(len(posts_count_check), 1)
 
     # Проверка редактирования поста
     def test_edit_post(self):
@@ -141,16 +142,13 @@ class TaskCreateFormTests(TestCase):
         comments_set = set(
             Comment.objects.values_list('id', flat=True)
         ) - comments_before
-        if len(comments_set) == 0:
-            raise AssertionError('Комментарий не создан')
-        elif len(comments_set) == 1:
-            comment_tuple = comments_set.pop()
-            comment = Comment.objects.get(id=comment_tuple)
-            self.assertEqual(self.post, comment.post)
-            self.assertEqual(self.user, comment.author)
-            self.assertEqual(
-                form_data['text'],
-                comment.text
-            )
-        else:
-            raise AssertionError('Создано более одного комментария')
+        comments_count_check = set(comments_set)
+        comment_tuple = comments_set.pop()
+        comment = Comment.objects.get(id=comment_tuple)
+        self.assertEqual(self.post, comment.post)
+        self.assertEqual(self.user, comment.author)
+        self.assertEqual(
+            form_data['text'],
+            comment.text
+        )
+        self.assertEqual(len(comments_count_check), 1)
